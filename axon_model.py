@@ -1,10 +1,13 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
+#from torch.utils.data import TensorDataset, DataLoader
+
+from tqdm import tqdm
 
 import numpy as np
 
-class AxonNetwork(torch.nn.Module):
+class AxonNetwork(nn.Module):
     '''PyTorch model for Axon arhitecture.
 
     Attributes:
@@ -12,6 +15,7 @@ class AxonNetwork(torch.nn.Module):
         coefs: coefficients for orthogonalization
         norms: coefficients for romalizations
         c: final coefficients for function approximation
+        device: device, used for computations, default = 'cpu' 
     '''
 
     def __init__(self, x, y, basis_coef_init=None, r=None, orth_coefs=None, norms=None, bas_np = None, num_basis_fun=3, device='cpu'):
@@ -34,10 +38,10 @@ class AxonNetwork(torch.nn.Module):
         layers = []
         self.norms = []
         self.coefs = []
-        
+        self.device = device
         if (basis_coef_init is None) or (r is None) or (orth_coefs is None) or (norms is None) or (bas_np is None):
             
-            # if there is no given basis -> initialize randomly 
+            # if there is no given basis -> initialize randomly
             bs = torch.cat([torch.ones((x.shape[0],1)), x], dim=1)
             bs, r = torch.qr(bs)
             self.r = torch.inverse(r).to(device)
@@ -65,7 +69,7 @@ class AxonNetwork(torch.nn.Module):
             self.layers = nn.ModuleList(layers)
             self.c = (bas.t()@y).data.to(device)
             self.r = self.r.to(device)
-            self.device = device
+    
 
     def forward(self, x):
         x = self.get_basis(x)
@@ -101,3 +105,51 @@ class AxonNetwork(torch.nn.Module):
             x = torch.cat([x,new_x], dim=1)
 
         return x
+
+
+def init_weights(m):
+    '''
+    Xavier uniform weights initialization
+    Args:
+        m: PyTorch model
+    '''
+    if type(m) == nn.Linear:
+        torch.nn.init.xavier_uniform_(m.weight)
+
+
+def train_random_model(xs, f, K, num_epochs, device='cpu'):
+    '''
+    Train model with random initialization
+    Args:
+        xs: numpy array of points
+        f: function to approximate
+        K: number of basis functions to add
+        num_epochs: number of training epochs 
+        device: optional, device, used for computations 
+    Returns:
+        errors: list of errors
+    '''
+    fs = f(xs).flatten()
+
+    xs = torch.from_numpy(xs.astype(np.float32)).to(device)
+    fs = torch.from_numpy(fs.astype(np.float32)).to(device)
+    #print(xs)
+    #loader = DataLoader(TensorDataset(xs, fs), batch_size=xs.shape[0])
+    errors = []
+    for j in tqdm(range(20)): # train several times
+        model = AxonNetwork(xs.cpu(), fs.cpu(), num_basis_fun=K+2).to(device)
+        model.apply(init_weights)
+        optimizer = torch.optim.Adam(model.parameters(), lr = 1e-3)
+
+        for i in range(num_epochs):
+            pred = model(xs)  # full gradient
+            loss = F.mse_loss(pred, fs)
+            optimizer.zero_grad()
+            loss.backward(retain_graph=True)
+            optimizer.step()
+
+        pred = model(xs)
+
+        error = (torch.norm(pred - fs)/ torch.norm(fs)).item()
+        errors.append(error)
+    return errors
