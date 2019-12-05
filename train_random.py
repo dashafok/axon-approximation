@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser('Train axon network with random initialization'
 parser.add_argument('function', type=str, default='x2', help='possible values: x2, sqrt, exp, sin, 2d, diff')
 parser.add_argument('--K', type=int, default=10, help='the maximal number of basis functions to add')
 parser.add_argument('--num_epochs', type=int, default='1000')
-parser.add_argument('--eps', type=int, help='epsilon for equation -eps^2 u''+u = 1, u(0)=u(1)=0')
+parser.add_argument('--eps', type=float, help='epsilon for equation -eps^2 u''+u = 1, u(0)=u(1)=0')
 
 # solution for -eps^2 u''+u = 1, u(0)=u(1)=0
 def u(x, eps=0.05):
@@ -44,19 +44,24 @@ if __name__=="__main__":
 	#err = train_random_model(xs, lambda x: np.sin(20*x), 10, 1)
 	if args.function == 'diff':
 		xs = np.linspace(0,1,1000).reshape(-1,1)
-		eps = args['eps']
+		eps = args.eps
 		errors = {}
 		errors[eps] = []
 
 		for k in range(1,K+1):
 			err_k = train_random_model(xs, lambda x: u(x, eps), k, num_epochs)
 			errors[eps].append(err_k)
-
 		if os.path.exists(fname):
 			with open(fname,'rb') as f:
 				errors1 = pickle.load(f)
-			with open(fname,'rb') as f:
-				pickle.dump({'error': errors1['error'].update(errors)}, f)
+				#print(errors1)
+			with open(fname,'wb') as f:
+				#print(errors1['error'].update(errors))
+				errors1['error'].update(errors)
+				pickle.dump(errors1, f)
+		else:
+			with open(fname,'wb') as f:
+				pickle.dump({'error': errors}, f)
 
 	elif args.function == '2d':
 		x = np.linspace(-1,1,100)

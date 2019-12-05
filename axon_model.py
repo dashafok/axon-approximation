@@ -137,7 +137,7 @@ def train_random_model(xs, f, K, num_epochs, device='cpu'):
     #loader = DataLoader(TensorDataset(xs, fs), batch_size=xs.shape[0])
     errors = []
     for j in tqdm(range(20)): # train several times
-        model = AxonNetwork(xs.cpu(), fs.cpu(), num_basis_fun=K+2).to(device)
+        model = AxonNetwork(xs.cpu(), fs.cpu(), num_basis_fun=K+xs.shape[-1]+1).to(device)
         model.apply(init_weights)
         optimizer = torch.optim.Adam(model.parameters(), lr = 1e-3)
 
