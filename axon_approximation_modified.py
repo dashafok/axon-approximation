@@ -12,16 +12,20 @@ def repu(x, q):
 	z[x <= 0] = 0.0
 	return z
 
-def obj(w, x, res, nonlinearity):
- 	'''
- 	Objective function for axon_algorithm (condisdered in the paper)
- 	'''
- 	if (np.dot(w, w) < 1e-7):
- 		return 100
- 	return -(relu(x@w)@res)**2/w.T@x.T@x@w + 1e-8*(np.dot(w, w)-1)**2
+
+def obj_new(w, x, res, nonlinearity):
+	'''
+	Modified objective function for axon_algorithm 
+	'''
+	new_bas = nonlinearity(x@w)
+	# first, orthogonalize:
+	new_bas = new_bas - x@(x.T@new_bas)
+	if (np.dot(new_bas.flatten(), new_bas.flatten()) < 1e-7):
+		return 100
+	return -(new_bas.flatten()@res.flatten())**2/(new_bas.flatten()@new_bas.flatten()) + 1e-8*(np.dot(new_bas.flatten(), new_bas.flatten())-1)**2
 
 
-def axon_algorithm(xs, ys, K, objective=obj, nonlinearity=relu):
+def axon_algorithm_new(xs, ys, K, objective=obj_new, nonlinearity=relu):
 	'''
 	Greedy algorithm for function approximation	from paper
 
@@ -64,12 +68,21 @@ def axon_algorithm(xs, ys, K, objective=obj, nonlinearity=relu):
 		new_bas = relu(bs@x0)
 
 		# orthogonalize and remember coefficients, whiche are later needed for inference:
-		orth_coef.append(bs.T@new_bas)
+		c_orth = bs.T@new_bas
 		new_bas = new_bas - bs@bs.T@new_bas
-
-		# normalize and remember norms, as they will be needed for inference:
-		orth_norms.append(np.linalg.norm(new_bas))
+		norm_orth = np.linalg.norm(new_bas)
 		new_bas = new_bas/np.linalg.norm(new_bas)
+		# normalize and remember norms, as they will be needed for inference:
+		
+		for _ in range(2):
+			c_orth = bs.T@new_bas
+			new_bas = new_bas - bs@bs.T@new_bas
+			norm_orth = np.linalg.norm(new_bas)
+			new_bas = new_bas/np.linalg.norm(new_bas)
+
+		orth_norms.append(norm_orth)
+		orth_coef.append(c_orth)
+
 
 		bs = np.hstack([bs, new_bas.reshape(-1, 1)])
 		bs_coef.append(x0)
@@ -78,4 +91,3 @@ def axon_algorithm(xs, ys, K, objective=obj, nonlinearity=relu):
 		errors.append(np.linalg.norm(res)/np.linalg.norm(ys))
 	
 	return bs, bs_coef, r, orth_coef, orth_norms, errors
-
