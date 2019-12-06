@@ -7,16 +7,16 @@ def relu(x):
 	z[x <= 0] = 0.0
 	return z
 
-def objective(w, x, res):
+def objective(w, x, res, nonlinearity=relu):
 	'''
 	objective function for axon_algorithm
 	'''
-	new_bas = relu(x@w)
+	new_bas = nonlinearity(x@w)
 	# first, orthogonalize:
 	new_bas = new_bas - x@(x.T@new_bas)
-	if (np.dot(w, w) < 1e-7):
+	if (np.dot(new_bas.flatten(), new_bas.flatten()) < 1e-7):
 		return 100
-	return -(new_bas.flatten()@res.flatten())**2/(new_bas.flatten()@new_bas.flatten()) + 1e-8*(np.dot(w, w)-1)**2
+	return -(new_bas.flatten()@res.flatten())**2/(new_bas.flatten()@new_bas.flatten()) + 1e-8*(np.dot(new_bas.flatten(), new_bas.flatten())-1)**2
 
 
 def axon_algorithm(xs, ys, K):
