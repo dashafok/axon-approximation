@@ -7,3 +7,7 @@ Prior installation of [nevergrad](https://github.com/facebookresearch/nevergrad)
 ```
 pip install nevergrad
 ```
+
+### Example
+Error function decrease with adding basis function for approximation of $\sqrt{x}$:
+![](loss.gif)
