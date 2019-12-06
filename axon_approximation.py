@@ -16,7 +16,7 @@ def objective(w, x, res):
 	new_bas = new_bas - x@(x.T@new_bas)
 	if (np.dot(w, w) < 1e-7):
 		return 100
-	return -(relu(x@w)@res)**2/w.T@x.T@x@w + 1e-8*(np.dot(w, w)-1)**2
+	return -(new_bas.flatten()@res.flatten())**2/(new_bas.flatten()@new_bas.flatten()) + 1e-8*(np.dot(w, w)-1)**2
 
 
 def axon_algorithm(xs, ys, K):
