@@ -27,7 +27,7 @@ def obj_new(w, x, res, nonlinearity):
 
 def axon_algorithm_new(xs, ys, K, objective=obj_new, nonlinearity=relu):
 	'''
-	Greedy algorithm for function approximation	from paper
+	Greedy algorithm for function approximation	with modified objective
 
 	Args:
 		xs: numpy array of points
@@ -67,19 +67,20 @@ def axon_algorithm_new(xs, ys, K, objective=obj_new, nonlinearity=relu):
 		# orthogonalize:
 		new_bas = relu(bs@x0)
 
-		# orthogonalize and remember coefficients, whiche are later needed for inference:
+		# orthogonormalize
 		c_orth = bs.T@new_bas
 		new_bas = new_bas - bs@bs.T@new_bas
 		norm_orth = np.linalg.norm(new_bas)
 		new_bas = new_bas/np.linalg.norm(new_bas)
-		# normalize and remember norms, as they will be needed for inference:
 		
+		# reorthonomalize
 		for _ in range(2):
 			c_orth = bs.T@new_bas
 			new_bas = new_bas - bs@bs.T@new_bas
 			norm_orth = np.linalg.norm(new_bas)
 			new_bas = new_bas/np.linalg.norm(new_bas)
 
+		# remember coefficients, as they will be needed for inference:
 		orth_norms.append(norm_orth)
 		orth_coef.append(c_orth)
 

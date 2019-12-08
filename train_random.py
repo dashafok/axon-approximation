@@ -19,6 +19,7 @@ parser.add_argument('--K', type=int, default=10, help='the maximal number of bas
 parser.add_argument('--num_epochs', type=int, default='1000')
 parser.add_argument('--eps', type=float, help='epsilon for equation -eps^2 u''+u = 1, u(0)=u(1)=0')
 
+
 # solution for -eps^2 u''+u = 1, u(0)=u(1)=0
 def u(x, eps=0.05):
     a = (1-np.exp(1/eps))/(np.exp(2/eps)-1)
@@ -36,6 +37,10 @@ function_mapping_1d = {'x2': lambda x: x**2,
 
 
 if __name__=="__main__":
+	if torch.cuda.is_available():
+		device = 'cuda:0'
+	else:
+		device = 'cpu'
 	args = parser.parse_args()
 	K = args.K
 	num_epochs = args.num_epochs
@@ -49,7 +54,7 @@ if __name__=="__main__":
 		errors[eps] = []
 
 		for k in range(1,K+1):
-			err_k = train_random_model(xs, lambda x: u(x, eps), k, num_epochs)
+			err_k = train_random_model(xs, lambda x: u(x, eps), k, num_epochs, device=device)
 			errors[eps].append(err_k)
 		if os.path.exists(fname):
 			with open(fname,'rb') as f:
@@ -71,7 +76,7 @@ if __name__=="__main__":
 		errors = []
 
 		for k in range(1,K+1):
-			err_k = train_random_model(xs, f_2d, k, num_epochs)
+			err_k = train_random_model(xs, f_2d, k, num_epochs, device=device)
 			errors.append(err_k)
 			with open(fname,'wb') as f:
 				pickle.dump({'error': errors}, f)
@@ -81,7 +86,7 @@ if __name__=="__main__":
 		errors = []
 
 		for k in range(1,K+1):
-			err_k = train_random_model(xs, f, k, num_epochs)
+			err_k = train_random_model(xs, f, k, num_epochs, device=device)
 			errors.append(err_k)
 		with open(fname,'wb') as f:
 			pickle.dump({'error': errors}, f)
