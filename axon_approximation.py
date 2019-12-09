@@ -21,7 +21,19 @@ def obj(w, x, res, nonlinearity):
  	return -(relu(x@w)@res)**2/w.T@x.T@x@w + 1e-8*(np.dot(w, w)-1)**2
 
 
-def axon_algorithm(xs, ys, K, objective=obj, nonlinearity=relu):
+def obj_new(w, x, res, nonlinearity):
+	'''
+	Modified objective function for axon_algorithm 
+	'''
+	new_bas = nonlinearity(x@w)
+	# first, orthogonalize:
+	new_bas = new_bas - x@(x.T@new_bas)
+	if (np.dot(new_bas.flatten(), new_bas.flatten()) < 1e-7):
+		return 100
+	return -(new_bas.flatten()@res.flatten())**2/(new_bas.flatten()@new_bas.flatten()) + 1e-8*(np.dot(new_bas.flatten(), new_bas.flatten())-1)**2
+
+
+def axon_algorithm(xs, ys, K, new_obj=True, nonlinearity=relu):
 	'''
 	Greedy algorithm for function approximation	from paper
 
@@ -29,7 +41,7 @@ def axon_algorithm(xs, ys, K, objective=obj, nonlinearity=relu):
 		xs: numpy array of points
 		ys: function values
 		K: number of basis function to compute
-		objective: objective from the paper or modified
+		new_obj: True to use modified objective
 		nonlinearity: nonlinearity to use, default - relu
 	Returns:
 		bs: basis values
@@ -51,7 +63,10 @@ def axon_algorithm(xs, ys, K, objective=obj, nonlinearity=relu):
 	orth_norms = []
 	errors = []
 	res = ys - bs@bs.T@ys
-
+	if new_obj:
+		objective = obj
+	else:
+		objective = obj_new
 	for i in range(K):
 
 		# solve optimization problem:
@@ -60,16 +75,25 @@ def axon_algorithm(xs, ys, K, objective=obj, nonlinearity=relu):
 		x0 = opt_res.args[0]
 		x0 = x0/np.linalg.norm(x0)
 		
-		# orthogonalize:
 		new_bas = relu(bs@x0)
-
-		# orthogonalize and remember coefficients, whiche are later needed for inference:
-		orth_coef.append(bs.T@new_bas)
+		
+		# orthogonormalize
+		c_orth = bs.T@new_bas
 		new_bas = new_bas - bs@bs.T@new_bas
-
-		# normalize and remember norms, as they will be needed for inference:
-		orth_norms.append(np.linalg.norm(new_bas))
+		norm_orth = np.linalg.norm(new_bas)
 		new_bas = new_bas/np.linalg.norm(new_bas)
+		
+		# remember coefficients, as they will be needed for inference:
+		orth_norms.append(norm_orth)
+		orth_coef.append(c_orth)
+
+		if new_obj:
+			# reorthonomalize
+			for _ in range(2):
+				c_orth = bs.T@new_bas
+				new_bas = new_bas - bs@bs.T@new_bas
+				norm_orth = np.linalg.norm(new_bas)
+				new_bas = new_bas/np.linalg.norm(new_bas)		
 
 		bs = np.hstack([bs, new_bas.reshape(-1, 1)])
 		bs_coef.append(x0)
