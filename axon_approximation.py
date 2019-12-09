@@ -18,7 +18,7 @@ def obj(w, x, res, nonlinearity):
  	'''
  	if (np.dot(w, w) < 1e-7):
  		return 100
- 	return -(relu(x@w)@res)**2/w.T@x.T@x@w + 1e-8*(np.dot(w, w)-1)**2
+ 	return -(nonlinearity(x@w)@res)**2/w.T@x.T@x@w + 1e-8*(np.dot(w, w)-1)**2
 
 
 def obj_new(w, x, res, nonlinearity):
@@ -33,7 +33,7 @@ def obj_new(w, x, res, nonlinearity):
 	return -(new_bas.flatten()@res.flatten())**2/(new_bas.flatten()@new_bas.flatten()) + 1e-8*(np.dot(new_bas.flatten(), new_bas.flatten())-1)**2
 
 
-def axon_algorithm(xs, ys, K, new_obj=True, nonlinearity=relu):
+def axon_algorithm(xs, ys, K, get_optimizer, new_obj=True, nonlinearity=relu, **optimizer_args):
 	'''
 	Greedy algorithm for function approximation	from paper
 
@@ -41,6 +41,8 @@ def axon_algorithm(xs, ys, K, new_obj=True, nonlinearity=relu):
 		xs: numpy array of points
 		ys: function values
 		K: number of basis function to compute
+		optimizer: optimizer for minimization problem
+		get_optimizer: a function returning optimizer, depending on the number of basis functions
 		new_obj: True to use modified objective
 		nonlinearity: nonlinearity to use, default - relu
 	Returns:
@@ -70,30 +72,30 @@ def axon_algorithm(xs, ys, K, new_obj=True, nonlinearity=relu):
 	for i in range(K):
 
 		# solve optimization problem:
-		optimizer = ng.optimizers.OnePlusOne(instrumentation=bs.shape[1], budget=1200)
+		optimizer = get_optimizer(bs.shape[1])
 		opt_res = optimizer.minimize(lambda x: objective(x, bs, res, nonlinearity=nonlinearity))
 		x0 = opt_res.args[0]
 		x0 = x0/np.linalg.norm(x0)
 		
-		new_bas = relu(bs@x0)
+		new_bas = nonlinearity(bs@x0)
 		
 		# orthogonormalize
-		c_orth = bs.T@new_bas
+		c_orth = [bs.T@new_bas]
 		new_bas = new_bas - bs@bs.T@new_bas
-		norm_orth = np.linalg.norm(new_bas)
+		norm_orth = [np.linalg.norm(new_bas)]
 		new_bas = new_bas/np.linalg.norm(new_bas)
 		
-		# remember coefficients, as they will be needed for inference:
-		orth_norms.append(norm_orth)
-		orth_coef.append(c_orth)
 
 		if new_obj:
 			# reorthonomalize
 			for _ in range(2):
-				c_orth = bs.T@new_bas
+				c_orth.append(bs.T@new_bas)
 				new_bas = new_bas - bs@bs.T@new_bas
-				norm_orth = np.linalg.norm(new_bas)
+				norm_orth.append(np.linalg.norm(new_bas))
 				new_bas = new_bas/np.linalg.norm(new_bas)		
+		# remember coefficients, as they will be needed for inference:
+		orth_norms.append(norm_orth)
+		orth_coef.append(c_orth)
 
 		bs = np.hstack([bs, new_bas.reshape(-1, 1)])
 		bs_coef.append(x0)

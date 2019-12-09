@@ -59,7 +59,7 @@ class AxonNetwork(nn.Module):
             bas = torch.from_numpy(bas_np.astype(np.float32))
             self.r = torch.inverse(torch.from_numpy(r.astype(np.float32)))
             self.norms = norms
-            self.coefs = [torch.from_numpy(coef.astype(np.float32)).to(device) for coef in orth_coefs]
+            self.coefs = [[torch.from_numpy(coef.astype(np.float32)).to(device) for coef in c] for c in orth_coefs]
 
 
             for i in range(len(basis_coef_init)):
@@ -83,9 +83,9 @@ class AxonNetwork(nn.Module):
         for l in self.layers:
             
             new_x = F.relu(l(x))
-            self.coefs.append((x.t()@new_x).reshape(-1).data.to(self.device))
+            self.coefs.append([(x.t()@new_x).reshape(-1).data.to(self.device)])
             new_x = new_x - (x@x.t()@new_x)
-            self.norms.append(torch.norm(new_x).data.to(self.device))
+            self.norms.append([torch.norm(new_x).data.to(self.device)])
             new_x = new_x/torch.norm(new_x)
 
             x = torch.cat([x,new_x], dim=1)
@@ -100,8 +100,9 @@ class AxonNetwork(nn.Module):
         
         for i,l in enumerate(self.layers):
             new_x = F.relu(l(x))
-            new_x = new_x - (x@self.coefs[i])[:,None]
-            new_x = new_x/self.norms[i]
+            for coef, norm in zip(self.coefs[i], self.norms[i]):
+                new_x = new_x - (x@coef)[:,None]
+                new_x = new_x/norm
             x = torch.cat([x,new_x], dim=1)
 
         return x
