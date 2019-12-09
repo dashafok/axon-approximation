@@ -33,7 +33,7 @@ def obj_new(w, x, res, nonlinearity):
 	return -(new_bas.flatten()@res.flatten())**2/(new_bas.flatten()@new_bas.flatten()) + 1e-8*(np.dot(new_bas.flatten(), new_bas.flatten())-1)**2
 
 
-def axon_algorithm(xs, ys, K, get_optimizer, new_obj=True, nonlinearity=relu, **optimizer_args):
+def axon_algorithm(xs, ys, K, get_optimizer=None, new_obj=True, nonlinearity=relu):
 	'''
 	Greedy algorithm for function approximation	from paper
 
@@ -42,7 +42,7 @@ def axon_algorithm(xs, ys, K, get_optimizer, new_obj=True, nonlinearity=relu, **
 		ys: function values
 		K: number of basis function to compute
 		optimizer: optimizer for minimization problem
-		get_optimizer: a function returning optimizer, depending on the number of basis functions
+		get_optimizer: a function returning optimizer, depending on the number of basis functions, if None, use OnePlusOne
 		new_obj: True to use modified objective
 		nonlinearity: nonlinearity to use, default - relu
 	Returns:
@@ -72,7 +72,11 @@ def axon_algorithm(xs, ys, K, get_optimizer, new_obj=True, nonlinearity=relu, **
 	for i in range(K):
 
 		# solve optimization problem:
-		optimizer = get_optimizer(bs.shape[1])
+		if get_optimizer is None:
+			optimizer = ng.optimizers.OnePlusOne(instrumentation=bs.shape[1], budget=1200)
+		else:
+			optimizer = get_optimizer(bs.shape[1])
+
 		opt_res = optimizer.minimize(lambda x: objective(x, bs, res, nonlinearity=nonlinearity))
 		x0 = opt_res.args[0]
 		x0 = x0/np.linalg.norm(x0)
